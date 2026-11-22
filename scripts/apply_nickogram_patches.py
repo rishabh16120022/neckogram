@@ -2,7 +2,7 @@
 """
 NickoGram Automated Patch Engine
 Applies custom branding, DM Protection settings, English UI strings,
-and new launcher icons onto the Telegram Android / AyuGram4A base.
+and new launcher icons onto the Telegram Android / Nekogram base.
 """
 
 import os
@@ -11,9 +11,12 @@ import re
 
 BASE_DIR = os.path.abspath(".")
 ART_DIR = os.path.join(BASE_DIR, "art")
-TMESSAGES_DIR = os.path.join(BASE_DIR, "TMessagesProj")
-RES_DIR = os.path.join(TMESSAGES_DIR, "src", "main", "res")
-STRINGS_FILE = os.path.join(RES_DIR, "values", "strings.xml")
+
+# Find strings.xml and res directories across both Nekogram and AyuGram/Telegram structures
+RES_DIRS = [
+    os.path.join(BASE_DIR, "TMessagesProj_App", "src", "main", "res"),
+    os.path.join(BASE_DIR, "TMessagesProj", "src", "main", "res"),
+]
 
 DM_PROTECTION_STRINGS = """
     <!-- NickoGram: DM Protection & Security Firewall -->
@@ -59,64 +62,77 @@ DM_PROTECTION_STRINGS = """
 """
 
 def patch_strings():
-    if not os.path.exists(STRINGS_FILE):
-        print(f"Strings file not found at {STRINGS_FILE}, skipping string patches.")
-        return
+    patched_any = False
+    for res_dir in RES_DIRS:
+        strings_file = os.path.join(res_dir, "values", "strings.xml")
+        if not os.path.exists(strings_file):
+            continue
 
-    with open(STRINGS_FILE, "r", encoding="utf-8") as f:
-        content = f.read()
+        with open(strings_file, "r", encoding="utf-8") as f:
+            content = f.read()
 
-    # Replace App Names
-    content = re.sub(
-        r'<string name="AppName">[^<]+</string>',
-        '<string name="AppName">NickoGram</string>',
-        content
-    )
-    content = re.sub(
-        r'<string name="AppNameBeta">[^<]+</string>',
-        '<string name="AppNameBeta">NickoGram</string>',
-        content
-    )
+        # Replace App Names
+        content = re.sub(
+            r'<string name="AppName">[^<]+</string>',
+            '<string name="AppName">NickoGram</string>',
+            content
+        )
+        content = re.sub(
+            r'<string name="AppNameBeta">[^<]+</string>',
+            '<string name="AppNameBeta">NickoGram</string>',
+            content
+        )
 
-    # Inject DM Protection strings before </resources>
-    if "NickoGramDMProtection" not in content:
-        content = content.replace("</resources>", f"{DM_PROTECTION_STRINGS}\n</resources>")
-        print("Injected NickoGram DM Protection English strings successfully.")
+        # Inject DM Protection strings before </resources>
+        if "NickoGramDMProtection" not in content:
+            content = content.replace("</resources>", f"{DM_PROTECTION_STRINGS}\n</resources>")
+            print(f"Injected NickoGram DM Protection English strings in {strings_file}")
 
-    with open(STRINGS_FILE, "w", encoding="utf-8") as f:
-        f.write(content)
+        with open(strings_file, "w", encoding="utf-8") as f:
+            f.write(content)
 
-    print("Updated AppName to NickoGram in strings.xml.")
+        print(f"Updated AppName to NickoGram in {strings_file}")
+        patched_any = True
+
+    if not patched_any:
+        print("Warning: No strings.xml found in expected paths.")
 
 def copy_icons():
     if not os.path.exists(ART_DIR):
         print("Art directory not found, skipping icon copy.")
         return
 
-    for folder in os.listdir(ART_DIR):
-        src_folder = os.path.join(ART_DIR, folder)
-        if os.path.isdir(src_folder) and folder.startswith("mipmap-"):
-            dst_folder = os.path.join(RES_DIR, folder)
-            os.makedirs(dst_folder, exist_ok=True)
-            for icon_name in ["ic_launcher.png", "ic_launcher_round.png"]:
-                src_icon = os.path.join(src_folder, icon_name)
-                if os.path.exists(src_icon):
-                    shutil.copy2(src_icon, os.path.join(dst_folder, icon_name))
-                    print(f"Copied {icon_name} -> {dst_folder}")
+    for res_dir in RES_DIRS:
+        if not os.path.exists(res_dir):
+            continue
 
-def create_api_keys():
+        for folder in os.listdir(ART_DIR):
+            src_folder = os.path.join(ART_DIR, folder)
+            if os.path.isdir(src_folder) and folder.startswith("mipmap-"):
+                dst_folder = os.path.join(res_dir, folder)
+                os.makedirs(dst_folder, exist_ok=True)
+                for icon_name in ["ic_launcher.png", "ic_launcher_round.png"]:
+                    src_icon = os.path.join(src_folder, icon_name)
+                    if os.path.exists(src_icon):
+                        shutil.copy2(src_icon, os.path.join(dst_folder, icon_name))
+                        print(f"Copied {icon_name} -> {dst_folder}")
+
+def create_config_files():
+    # Write local.properties with API keys
+    local_props = os.path.join(BASE_DIR, "local.properties")
+    with open(local_props, "w", encoding="utf-8") as f:
+        f.write("apiId=25806904\napiHash=514b5e04d7cf2e6a188a5e8f5310ec90\n")
+    print("Created local.properties with API credentials.")
+
+    # Write API_KEYS for Telegram/AyuGram base
     api_keys_file = os.path.join(BASE_DIR, "API_KEYS")
-    content = '''APP_ID = 6
-APP_HASH = "eb06d4abfb49dc3eeb1aeb98ae0f581e"
-MAPS_V2_API = ""
-'''
     with open(api_keys_file, "w", encoding="utf-8") as f:
-        f.write(content)
-    print("Created API_KEYS file with official Telegram parameters.")
+        f.write('APP_ID = 6\nAPP_HASH = "eb06d4abfb49dc3eeb1aeb98ae0f581e"\nMAPS_V2_API = ""\n')
+    print("Created API_KEYS file.")
 
 if __name__ == "__main__":
     print("Applying NickoGram Patches...")
     patch_strings()
     copy_icons()
-    create_api_keys()
+    create_config_files()
     print("All NickoGram patches applied successfully!")

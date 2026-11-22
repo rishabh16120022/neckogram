@@ -27,10 +27,10 @@ jobs:
           sudo apt-get clean
           df -h
 
-      - name: Fetch AyuGram4A Base Source
+      - name: Fetch Nekogram Base Source
         run: |
-          echo "Cloning latest AyuGram4A rewrite branch..."
-          git clone --depth 1 -b rewrite https://github.com/AyuGram/AyuGram4A.git temp_upstream
+          echo "Cloning latest Nekogram main branch..."
+          git clone --depth 1 -b main https://github.com/Nekogram/Nekogram.git temp_upstream
           # Copy upstream files into workspace, preserving our scripts/ and art/
           cp -rn temp_upstream/* .
           rm -rf temp_upstream
@@ -52,8 +52,8 @@ jobs:
 
       - name: Setup NDK
         run: |
-          echo "Installing NDK r25c..."
-          ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
+          echo "Installing NDK..."
+          ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "ndk;27.3.13750724" "cmake;3.22.1"
 
       - name: Grant Execute Permission to Gradle
         run: chmod +x gradlew
@@ -61,12 +61,12 @@ jobs:
       - name: Build NickoGram APK
         run: |
           echo "Building NickoGram Debug APK..."
-          ./gradlew assembleAfatDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon -x test
 
       - name: Find and Rename APK
         run: |
           mkdir -p output_apk
-          find TMessagesProj/build/outputs/apk -name "*.apk" -exec cp {} output_apk/NickoGram-v1.0-debug.apk \;
+          find . -name "*debug*.apk" -exec cp {} output_apk/NickoGram-v1.0-debug.apk \;
           ls -la output_apk/
 
       - name: Upload NickoGram APK Artifact
